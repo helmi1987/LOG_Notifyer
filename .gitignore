@@ -1,0 +1,39 @@
+# Konfiguration mit Secrets
+notifier_settings.json
+notifier_settings.*.json
+!notifier_settings.example.json
+
+# Test- und Sandbox-Daten
+test/
+*.log
+*.log.*
+
+# Skript-eigene Logs (falls LOG_NOTIFIER_LOG_DIR auf ./logs zeigt)
+logs/
+log-notifier/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.python-version
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editoren
+.vscode/
+.idea/
+*.swp
+*~
+
+# Secrets / Keys
+*.token
+*.key
+.env
