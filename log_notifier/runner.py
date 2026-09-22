@@ -141,7 +141,7 @@ def _scan_file(
             m = rx.search(line)
             if m:
                 hits.append({
-                    "line": line,
+                    "line": m.group(0),
                     "groups": list(m.groups()),
                     "priority": meta.get("priority", 0),
                     "regex": meta["regex"],
