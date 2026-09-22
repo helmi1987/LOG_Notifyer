@@ -111,7 +111,7 @@ Die Struktur der JSON-Konfiguration hat zwei Bereiche: **Global** und **Logs**.
 
 **Prioritäten:** Frei wählbar (0-100+). Der höchste Treffer bestimmt
 die Priorität der Nachricht. Bei Gotify mit Bark-Plugin bewusst hoch
-ansetzen (z. B. 20 für Fehler).
+ansetzen (z. B. 10 für Fehler).
 
 **Emoji-Auswahl:** Es gewinnt die **höchste definierte Stufe <= Treffer-Prio**.
 Beispiel-Mapping:
@@ -124,7 +124,7 @@ Beispiel-Mapping:
       "10": "🚨"
     }
 
-Bei Prio 20 wird das Emoji der Stufe 20 vor den Titel gesetzt.
+Bei Prio 10 wird das Emoji der Stufe 10 vor den Titel gesetzt.
 
 ---
 
@@ -139,7 +139,7 @@ Bei Prio 20 wird das Emoji der Stufe 20 vor den Titel gesetzt.
           "X-Gotify-Key": "DEIN-APP-TOKEN"
         },
         "priorityEmoji": {
-          "0":  "ℹ️"",
+          "0":  "ℹ️",
           "5":  "🔵",
           "8":  "🟡",
           "9":  "🔴",
