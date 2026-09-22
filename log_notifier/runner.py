@@ -198,11 +198,12 @@ def evaluate_log(log_cfg: dict, global_cfg: dict) -> dict | None:
     method = log_cfg.get("method", "POST")
     raw_title = log_cfg.get("title", f"Log Notifier: {log_id}")
     title = _apply_emoji(raw_title, max_priority, global_cfg)
-
+    
     message_lines = [f"[{log_id}] {len(hits)} Treffer (Prio {max_priority})"]
     for h in hits:
         message_lines.append(f"  {h['line']}")
-
+    message = "\n".join(message_lines) 
+    
     payload = {
         "title": title,
         "message": message,
