@@ -119,8 +119,8 @@ Beispiel-Mapping:
     "priorityEmoji": {
       "0":  "ℹ️",
       "5":  "🔵",
-      "8": "🟡",
-      "9": "🔴",
+      "8":  "🟡",
+      "9":  "🔴",
       "10": "🚨"
     }
 
@@ -139,11 +139,11 @@ Bei Prio 20 wird das Emoji der Stufe 20 vor den Titel gesetzt.
           "X-Gotify-Key": "DEIN-APP-TOKEN"
         },
         "priorityEmoji": {
-          "0":  "i",
-          "5":  "b",
-          "10": "y",
-          "20": "r",
-          "50": "!"
+          "0":  "ℹ️"",
+          "5":  "🔵",
+          "8":  "🟡",
+          "9":  "🔴",
+          "10": "🚨"
         }
       },
       "logs": [
