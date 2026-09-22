@@ -201,11 +201,7 @@ def evaluate_log(log_cfg: dict, global_cfg: dict) -> dict | None:
 
     message_lines = [f"[{log_id}] {len(hits)} Treffer (Prio {max_priority})"]
     for h in hits:
-        extra = ""
-        if h["groups"]:
-            extra = " -> " + ", ".join(h["groups"])
-        message_lines.append(f"  {h['line']}{extra}")
-    message = "\n".join(message_lines)
+        message_lines.append(f"  {h['line']}")
 
     payload = {
         "title": title,
