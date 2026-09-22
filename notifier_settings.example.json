@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "global": {
+    "webhookUrl": "http://GOTIFY-IP/message",
+    "headers": {
+      "Content-Type": "application/json",
+      "X-Gotify-Key": "REPLACE-ME"
+    },
+    "priorityEmoji": {
+      "0":  "ℹ️",
+      "5":  "🔵",
+      "10": "🟡",
+      "20": "🔴",
+      "50": "🚨"
+    },
+    "priorityEmojiDefault": "🔔"
+  },
+  "logs": [
+    {
+      "logId": "exampleApp",
+      "filePath": "/mnt/user/appdata/example/app.log",
+      "title": "Example App Job",
+      "method": "POST",
+      "useDateFilter": true,
+      "dateFormat": "%Y-%m-%d",
+      "startPattern": "Process started",
+      "checkRotatedLogs": true,
+      "rotationSuffix": ".1",
+      "patterns": [
+        { "regex": "Moved to cache:\\s*([\\d.]+)\\s*GB", "priority": 5 },
+        { "regex": "Moved to array:\\s*([\\d.]+)\\s*GB", "priority": 5 },
+        { "regex": "(?i)error|critical|failed",          "priority": 20 }
+      ]
+    }
+  ]
+}

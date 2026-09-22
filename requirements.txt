@@ -1,0 +1,3 @@
+requests>=2.31
+# optional für zuverlässige Tab-Completion auf macOS:
+# gnureadline>=8.1

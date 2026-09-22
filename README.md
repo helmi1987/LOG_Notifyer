@@ -1,176 +1,194 @@
-# Log Notifier
+# LOG_Notifyer
 
-Ein generisches, zustandsloses (stateless) Tool zur Log-Auswertung und Webhook-Benachrichtigung. Es wurde entwickelt, um Logdateien effizient von unten nach oben auszulesen, Logrotationen nativ zu unterstüzen und bei definierten Mustern massgeschneiderte Webhooks auszulösen.
+Ein generisches, zustandsloses (stateless) Tool zur Log-Auswertung und
+Webhook-Benachrichtigung. Es liest Logdateien **von unten nach oben**, um
+den aktuellen Ausführungsblock zu finden, unterstützt Logrotation nativ
+und verschickt bei definierten Mustern maßgeschneiderte Webhooks.
 
-## Inhaltsverzeichnis
+Getestet gegen **Gotify** (inkl. Bark-Plugin) und **ntfy**.
 
-* [Hauptfunktionen](#features)
-* [Installation & Setup](#installation)
-* [Konfiguration](#konfiguration)
-* [Vollständiges Konfigurationsbeispiel](#beispiel)
-* [Nutzung (Skriptaufruf)](#nutzung)
-* [Funktionsweise der Auswertung](#funktionsweise)
+---
 
 ## Hauptfunktionen
 
-* **Zustandsloses Lesen (Bottom-Up):** Sucht immer rückwärts vom Ende der Datei. Dadurch sind keine temporären State-Dateien nötig.
-* **Logrotation-Unterstützung:** Liest nahtlos über Dateigrenzen hinweg (z. B. von `app.log` zu `app.log.1`), falls ein Start-Muster nicht in der aktuellen Datei gefunden wird.
-* **Reguläre Ausdrücke (Regex):** Flexibles Definieren von Suchmustern mit individuellen Prioritäten.
-* **Flexible Webhooks:** Unterstützt POST, GET und PUT. Header und URLs können global definiert und pro Log überschrieben oder ergänzt werden.
-* **Datumsfilter:** Optionaler Filter, um ausschliesslich Log-Einträge des aktuellen Tages zu berücksichtigen. Format anpassbar.
-* **Interaktives Setup:** Konfiguration via `setup.py` inklusive Tab-Autovervollständigung für Dateipfade.
+- **Zustandsloses Lesen (Bottom-Up):** Sucht immer rückwärts vom Ende der
+  Datei. Keine State-Dateien nötig.
+- **Logrotation-Unterstützung:** Liest nahtlos über Dateigrenzen hinweg
+  (z. B. `app.log` -> `app.log.1`), falls das Start-Muster nicht in der
+  aktuellen Datei gefunden wird.
+- **Regex-basierte Muster:** Mit individuellen Prioritäten.
+- **Flexible Webhooks:** POST, GET, PUT. Header und URLs global und pro Log.
+- **Datumsfilter:** Optional nur Einträge des aktuellen Tages.
+- **Zeitzonenbewusst:** Datumsfilter über `LOG_NOTIFIER_TZ` konfigurierbar.
+- **Emoji-Mapping:** Prioritätsabhängige Emojis vor dem Titel.
+- **Interaktives Setup:** `configure`-Subcommand inkl. Tab-Completion.
+- **Atomares Speichern:** Keine kaputten Configs bei Abbruch.
+- **Webhook-Retry:** 3 Versuche mit Backoff.
 
-## Installation & Setup
+---
 
-Das Projekt benötigt eine Standard-Python3-Umgebung sowie die Bibliothek `requests`. Es müssen keine weiteren externen Systempakete installiert werden.
+## Voraussetzungen
 
-1. Kopiere die Dateien `setup.py` und `notifier_run.py` in ein gewünschtes Verzeichnis (z. B. `/opt/log-notifier/`).
-2. Führe das Setup-Skript aus, um die initiale Konfiguration zu erstellen:
+- Python >= 3.9
+- Python-Paket: `requests`
+- Optional für saubere Tab-Completion: `gnureadline`
 
-   python3 setup.py
+Installation:
 
-Das Skript führt dich durch ein interaktives Menü (Edit, Add, Remove), um die Einstellungen für deine Logdateien festzulegen. Die Konfiguration wird in der Datei `notifier_settings.json` gespeichert.
+    python3 -m pip install --user requests
+    # optional:
+    python3 -m pip install --user gnureadline
+
+---
+
+## Verzeichnisstruktur
+
+    LOG-Notifier/
+    |-- notifier.py                    # CLI-Einstiegspunkt
+    |-- requirements.txt
+    |-- notifier_settings.json         # wird vom Wizard erzeugt (nicht committen!)
+    |-- README.md
+    |-- LICENSE
+    |-- .gitignore
+    +-- log_notifier/
+        |-- __init__.py
+        |-- config.py                  # Laden / Validieren / atomar Speichern
+        |-- logging_setup.py           # plattformunabhängige Logrotation
+        |-- runner.py                  # Bottom-Up-Parsing + Emoji
+        |-- webhook.py                 # HTTP-Layer mit Retry
+        +-- setup_wizard.py            # interaktiver Wizard
+
+---
+
+## Nutzung
+
+    # Konfiguration erstellen / bearbeiten
+    python3 notifier.py configure
+
+    # Konfiguration prüfen
+    python3 notifier.py validate
+
+    # Alle Logs prüfen
+    python3 notifier.py run --all
+
+    # Ein spezifisches Log prüfen
+    python3 notifier.py run --id embyCacheJob
+
+    # Alternative Konfigurationsdatei
+    python3 notifier.py run --config /pfad/zu/config.json --all
+
+---
 
 ## Konfiguration
 
-Die Struktur der generierten JSON-Konfiguration ist in zwei Hauptbereiche unterteilt: **Global** und **Logs**.
+Die Struktur der JSON-Konfiguration hat zwei Bereiche: **Global** und **Logs**.
 
-### Globale Einstellungen
+### Global
 
-Definiert die Standardwerte, die für alle Logs gelten, sofern sie nicht überschrieben werden.
+| Feld | Beschreibung |
+|---|---|
+| `webhookUrl` | Standard-Webhook-URL |
+| `headers` | Standard-Header (werden pro Log gemerged) |
+| `priorityEmoji` | Optionales Mapping `{"<prio>": "<emoji>"}` |
+| `priorityEmojiDefault` | Fallback-Emoji, wenn keine Stufe passt |
 
-* `webhookUrl`: Die Standard-URL (z. B. Gotify).
-* `headers`: Standard-HTTP-Header (z. B. Content-Type).
+### Logs (pro Eintrag)
 
-### Log-spezifische Einstellungen
+| Parameter | Beschreibung |
+|---|---|
+| `logId` | Eindeutige ID für `--id` |
+| `filePath` | Absoluter Pfad zur Logdatei |
+| `startPattern` | String, der den Beginn eines Ausführungsblocks markiert |
+| `useDateFilter` | `true`/`false` - nur Zeilen mit heutigem Datum |
+| `dateFormat` | Python-`strftime`-Format (Default: `%Y-%m-%d`) |
+| `checkRotatedLogs` | `true`/`false` - rotierte Datei bei Bedarf prüfen |
+| `rotationSuffix` | Endung der rotierten Datei (Default: `.1`) |
+| `patterns` | Liste von `{ "regex": ..., "priority": ... }` |
+| `method` | `POST` (Default), `GET`, `PUT` |
+| `title` | Titel der Benachrichtigung |
+| `webhookUrl` | Überschreibt die globale URL |
+| `headers` | Ergänzt / überschreibt globale Header |
 
-Für jedes zu überwachende Logfile können spezifische Parameter festgelegt werden:
+**Prioritäten:** Frei wählbar (0-100+). Der höchste Treffer bestimmt
+die Priorität der Nachricht. Bei Gotify mit Bark-Plugin bewusst hoch
+ansetzen (z. B. 20 für Fehler).
 
-Parameter
+**Emoji-Auswahl:** Es gewinnt die **höchste definierte Stufe <= Treffer-Prio**.
+Beispiel-Mapping:
 
-Beschreibung
-
-`logId`
-
-Eindeutige ID für den gezielten Aufruf per Kommandozeile.
-
-`filePath`
-
-Absoluter Pfad zur Logdatei (z. B. `/var/log/embycache.log`).
-
-`startPattern`
-
-Ein String, der den Beginn eines Ausführungsblocks markiert. Findet das Skript diesen Text (von unten nach oben lesend), stoppt es die Suche.
-
-`useDateFilter`
-
-`true/false`. Wenn aktiv, werden nur Zeilen verarbeitet, die das heutige Datum enthalten.
-
-`dateFormat`
-
-Das Datumsformat für den Filter (Standard: `%Y-%m-%d`). Akzeptiert gängige Python `strftime` Platzhalter.
-
-`checkRotatedLogs`
-
-`true/false`. Wenn aktiv, wird bei Fehlen des `startPattern` automatisch die rotierte Datei geprüft.
-
-`rotationSuffix`
-
-Die Dateiendung des rotierten Logs (Standard: `.1`).
-
-`patterns`
-
-Ein Array von Regex-Regeln. Jede Regel benötigt ein `regex` (das Suchmuster) und eine `priority`.
-
-**Tipp zu Headern & URLs:** Wenn im Log-Block eine eigene `webhookUrl` oder eigene `headers` definiert werden, überschreiben/ergänzen diese die globalen Einstellungen.
-
-## Vollständiges Konfigurationsbeispiel
-
-Hier ist ein komplettes Beispiel der `notifier_settings.json`, das alle verfügbaren Parameter und Überschreibungen demonstriert.
-
-```
-{
-  "global": {
-    "webhookUrl": "http://GOTIFY-IP/message?token=GLOBAL-TOKEN",
-    "headers": {
-      "Content-Type": "application/json",
-      "User-Agent": "LogNotifier/1.0"
+    "priorityEmoji": {
+      "0":  "ℹ️",
+      "5":  "🔵",
+      "8": "🟡",
+      "9": "🔴",
+      "10": "🚨"
     }
-  },
-  "logs": [
+
+Bei Prio 20 wird das Emoji der Stufe 20 vor den Titel gesetzt.
+
+---
+
+## Beispiel: Gotify mit Bark-Plugin
+
     {
-      "logId": "embyCacheJob",
-      "filePath": "/var/log/embycache.log",
-      "webhookUrl": "http://GOTIFY-IP/message?token=SPECIFIC-TOKEN",
-      "method": "POST",
-      "headers": {
-        "Authorization": "Bearer abc123def456"
+      "schemaVersion": 1,
+      "global": {
+        "webhookUrl": "http://GOTIFY-IP/message",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Gotify-Key": "DEIN-APP-TOKEN"
+        },
+        "priorityEmoji": {
+          "0":  "i",
+          "5":  "b",
+          "10": "y",
+          "20": "r",
+          "50": "!"
+        }
       },
-      "title": "EmbyCache Sync Abschluss",
-      "useDateFilter": true,
-      "dateFormat": "%Y-%m-%d",
-      "startPattern": "Process started",
-      "checkRotatedLogs": true,
-      "rotationSuffix": ".1",
-      "patterns": [
+      "logs": [
         {
-          "regex": "Moved to cache:\\s*([\\d.]+)\\s*GB",
-          "priority": 5
-        },
-        {
-          "regex": "Moved to array:\\s*([\\d.]+)\\s*GB",
-          "priority": 5
-        },
-        {
-          "regex": "(?i)error|critical|failed",
-          "priority": 20
+          "logId": "embyCacheJob",
+          "filePath": "/mnt/user/appdata/embycache/embycache.log",
+          "title": "EmbyCache Sync Abschluss",
+          "useDateFilter": true,
+          "startPattern": "Process started",
+          "checkRotatedLogs": true,
+          "patterns": [
+            { "regex": "Moved to cache:\\s*([\\d.]+)\\s*GB", "priority": 5 },
+            { "regex": "(?i)error|critical|failed",          "priority": 20 }
+          ]
         }
       ]
     }
-  ]
-}
-```
 
-### Beschreibung der Parameter im Beispiel
+---
 
-* **global.webhookUrl & headers:** Werden als Standard verwendet, falls im Log-Block nichts anderes definiert ist.
-* **logs.webhookUrl:** Überschreibt in diesem Fall die globale URL mit einem spezifischen Token (z. B. für einen eigenen Gotify-Kanal).
-* **logs.headers:** Der `Authorization`-Header wird zu den globalen Headern hinzugefügt. Der Request sendet somit `Content-Type`, `User-Agent` und `Authorization`.
-* **method:** Setzt die HTTP-Methode für den Webhook (POST).
-* **title:** Der Titel, der in der Push-Benachrichtigung angezeigt wird.
-* **useDateFilter & dateFormat:** Es werden ausschliesslich Zeilen verarbeitet, die exakt das heutige Datum im Format `YYYY-MM-DD` enthalten.
-* **startPattern:** Das Skript liest die Datei von unten nach oben, bis es exakt den String `Process started` findet. Alles darüber wird als veraltet ignoriert.
-* **checkRotatedLogs & rotationSuffix:** Falls `Process started` in der aktuellen `embycache.log` nicht gefunden wird, öffnet das Skript nahtlos die `embycache.log.1` und sucht dort weiter.
-* **patterns:** Die Regex-Muster suchen nach verschobenen Gigabytes (Priorität 5) und Fehlern (Priorität 20). Findet das Skript beides, wird die Webhook-Meldung mit der höchsten gefundenen Priorität (20) verschickt. Die extrahierten Werte (z. B. "45.2") werden durch die Regex-Gruppierung `(...)` sauber als Payload formatiert.
+## Umgebungsvariablen
 
-## Nutzung (Skriptaufruf)
+| Variable | Default | Zweck |
+|---|---|---|
+| `LOG_NOTIFIER_LOG_DIR` | `/var/log`, dann `~/.local/state/log-notifier`, dann `./logs` | Zielordner für Skript-Logs |
+| `LOG_NOTIFIER_LOGLEVEL` | `INFO` | Log-Level (`DEBUG`, `INFO`, ...) |
+| `LOG_NOTIFIER_MAX_BYTES` | `10485760` | Rotationsgröße der Skript-Logs |
+| `LOG_NOTIFIER_BACKUPS` | `20` | Anzahl behaltener Logdateien |
+| `LOG_NOTIFIER_TZ` | `Europe/Zurich` | Zeitzone für Datumsfilter |
 
-Das Hauptskript `notifier_run.py` liest die JSON-Konfiguration ein und führt die Auswertung aus. Es bietet verschiedene Parameter für den gezielten Einsatz, z. B. als Cronjob oder am Ende eines anderen Skripts.
+---
 
-### Alle konfigurierten Logs prüfen
+## Wie das Bottom-Up-Parsing funktioniert
 
-```
-python3 notifier_run.py --all
-```
+1. Datei wird von der letzten zur ersten Zeile gelesen.
+2. Jede Zeile wird gegen die Patterns geprüft - Treffer werden gesammelt.
+3. Bei Fund des `startPattern` stoppt die Suche.
+4. Wurde das `startPattern` nicht gefunden und ist `checkRotatedLogs`
+   aktiv, wird `datei.log.1` (bzw. `rotationSuffix`) weiter durchsucht.
+5. Treffer werden chronologisch sortiert und als Webhook versendet.
+   Die höchste Priorität bestimmt die Priorität der Benachrichtigung
+   und die Auswahl des Emojis.
 
-### Ein spezifisches Log anhand der ID prüfen
+---
 
-```
-python3 notifier_run.py --id myAppLog
-```
+## Lizenz
 
-### Eine alternative Konfigurationsdatei verwenden
-
-```
-python3 notifier_run.py --config /pfad/zur/anderen_config.json --all
-```
-
-## Funktionsweise der Auswertung (Bottom-Up Parsing)
-
-1. Das Skript öffnet die Logdatei und liest sie **rückwärts (von der letzten zur ersten Zeile)**.
-2. Jede Zeile wird gegen die definierten Regex-Muster (`patterns`) geprüft. Treffer werden im Speicher gesammelt.
-3. Die Suche stoppt sofort, wenn das `startPattern` gefunden wird. Dies definiert den aktuellen, relevanten Ausführungsblock.
-4. Wird der Dateianfang erreicht und das `startPattern` fehlt (weil das Log rotiert wurde), öffnet das Skript automatisch die rotierte Datei (z. B. `app.log.1`) und setzt die Rückwärts-Suche nahtlos fort.
-5. Die gesammelten Treffer werden in chronologisch korrekte Reihenfolge (wieder von oben nach unten) gebracht und als Webhook versendet. Die höchste Priorität aller Treffer bestimmt die Priorität der Benachrichtigung.
-
-**Eigene Skript-Logs:** Beide Skripte (`setup.py` und `notifier_run.py`) protokollieren ihre eigene Ausführung mit einer integrierten Logrotation (max. 20 Dateien à 10 MB) unter `/var/log/notifier_setup.log` und `/var/log/notifier_run.log`.
+MIT - siehe `LICENSE`.
